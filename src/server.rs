@@ -135,7 +135,6 @@ where
     F: Send + Sync + 'static + Fn(&rouille::Request) -> rouille::Response,
 {
     server: rouille::Server<F>,
-    // server: hyper::Server<NewService, hyper::Body>,
 }
 
 impl<F> BoundServer<F>
