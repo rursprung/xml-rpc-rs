@@ -1,26 +1,24 @@
 use super::error::{Result, ResultExt};
 use super::xmlfmt::{from_params, into_params, parse, Call, Fault, Params, Response};
-use hyper::{self, Client as HyperClient};
 use serde::{Deserialize, Serialize};
 use std;
-use Url;
+use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
 
-use hyper::header::Headers;
-header! { (ContentType, "ContentType") => [String] }
-
-pub fn call_value<Tkey>(uri: &Url, name: Tkey, params: Params) -> Result<Response>
+pub fn call_value<URL, Tkey>(uri: &URL, name: Tkey, params: Params) -> Result<Response>
 where
+    URL: reqwest::IntoUrl + Clone,
     Tkey: Into<String>,
 {
     Client::new()?.call_value(uri, name, params)
 }
 
-pub fn call<'a, Tkey, Treq, Tres>(
-    uri: &Url,
+pub fn call<'a, URL, Tkey, Treq, Tres>(
+    uri: &URL,
     name: Tkey,
     req: Treq,
 ) -> Result<std::result::Result<Tres, Fault>>
 where
+    URL: reqwest::IntoUrl + Clone,
     Tkey: Into<String>,
     Treq: Serialize,
     Tres: Deserialize<'a>,
@@ -29,34 +27,33 @@ where
 }
 
 pub struct Client {
-    client: HyperClient,
+    client: reqwest::blocking::Client,
 }
 
 impl Client {
     pub fn new() -> Result<Client> {
-        let client = HyperClient::new();
+        let client = reqwest::blocking::Client::new();
         Ok(Client { client })
     }
 
-    pub fn call_value<Tkey>(&mut self, uri: &Url, name: Tkey, params: Params) -> Result<Response>
+    pub fn call_value<URL, Tkey>(&mut self, uri: &URL, name: Tkey, params: Params) -> Result<Response>
     where
+        URL: reqwest::IntoUrl + Clone,
         Tkey: Into<String>,
     {
         use super::xmlfmt::value::ToXml;
-        let body_str = Call {
+        let body = Call {
             name: name.into(),
             params,
         }
         .to_xml();
-        let bytes: &[u8] = body_str.as_bytes();
-        let body = hyper::client::Body::BufBody(bytes, bytes.len());
 
-        let mut headers = Headers::new();
-        headers.set(ContentType("xml".to_owned()));
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("text/xml"));
 
         let response = self
             .client
-            .post(uri.as_ref())
+            .post(uri.clone())
             .headers(headers)
             .body(body)
             .send()
@@ -65,13 +62,14 @@ impl Client {
         parse::response(response).map_err(Into::into)
     }
 
-    pub fn call<'a, Tkey, Treq, Tres>(
+    pub fn call<'a, URL, Tkey, Treq, Tres>(
         &mut self,
-        uri: &Url,
+        uri: &URL,
         name: Tkey,
         req: Treq,
     ) -> Result<std::result::Result<Tres, Fault>>
     where
+        URL: reqwest::IntoUrl + Clone,
         Tkey: Into<String>,
         Treq: Serialize,
         Tres: Deserialize<'a>,
