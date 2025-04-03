@@ -20,6 +20,6 @@ pub mod error;
 pub mod server;
 mod xmlfmt;
 
-pub use client::{call, call_value, Client};
-pub use server::Server;
-pub use xmlfmt::{from_params, into_params, Call, Fault, Params, Response, Value};
+pub use crate::client::{call, call_value, Client};
+pub use crate::server::Server;
+pub use crate::xmlfmt::{from_params, into_params, Call, Fault, Params, Response, Value};
